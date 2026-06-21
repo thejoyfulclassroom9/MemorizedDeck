@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mnemonica Trainer</title>
+<style>
+  /* ============================================================
+     MNEMONICA TRAINER — single-file app for GitHub Pages
+     Theme: "the magician's discipline" — deep ink, brass, card felt
+     ============================================================ */
+  :root{
+    --ink:#0e1116;          /* near-black background */
+    --ink-2:#161b22;        /* panel */
+    --ink-3:#1d2530;        /* raised */
+    --felt:#10342b;         /* deep card-table green */
+    --felt-line:#1c4a3d;
+    --brass:#c8a45c;        /* signature accent */
+    --brass-dim:#8a7038;
+    --paper:#ece5d4;        /* card face */
+    --paper-shadow:#c9c0aa;
+    --red:#c8313a;          /* hearts / diamonds */
+    --black:#15171b;        /* spades / clubs pip */
+    --text:#e8e6df;
+    --text-dim:#9aa3ad;
+    --ok:#3fae6f;
+    --bad:#d9534f;
+    --radius:14px;
+    --shadow:0 10px 30px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    background:
+      radial-gradient(120% 90% at 50% -10%, #1a2230 0%, var(--ink) 60%) fixed;
+    color:var(--text);
+    min-height:100vh;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:20px 16px 80px}
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:12px;margin-bottom:18px;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:baseline;gap:10px}
+  .brand h1{
+    font-size:26px;font-weight:700;letter-spacing:.5px;
+    color:var(--paper);
+  }
+  .brand h1 .acc{color:var(--brass)}
+  .brand .sub{
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    font-size:11px;letter-spacing:3px;text-transform:uppercase;
+    color:var(--brass-dim);
+  }
+  .lang{
+    display:flex;border:1px solid var(--ink-3);border-radius:999px;
+    overflow:hidden;font-family:ui-monospace,monospace;font-size:12px;
+  }
+  .lang button{
+    background:transparent;color:var(--text-dim);border:0;
+    padding:6px 12px;cursor:pointer;letter-spacing:1px;
+  }
+  .lang button.on{background:var(--brass);color:var(--ink)}
+
+  /* ---------- Mode tabs ---------- */
+  .modes{
+    display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px;
+  }
+  @media(min-width:560px){.modes{grid-template-columns:repeat(4,1fr)}}
+  .mode{
+    background:var(--ink-2);border:1px solid var(--ink-3);
+    color:var(--text-dim);border-radius:10px;padding:11px 8px;
+    cursor:pointer;font-size:13px;font-weight:600;letter-spacing:.3px;
+    transition:.15s;text-align:center;line-height:1.25;
+  }
+  .mode small{display:block;font-weight:400;font-size:10px;opacity:.7;margin-top:2px}
+  .mode:hover{border-color:var(--brass-dim);color:var(--text)}
+  .mode.on{background:var(--brass);color:var(--ink);border-color:var(--brass)}
+  .mode.on small{opacity:.85}
+
+  /* ---------- Options bar ---------- */
+  .opts{
+    display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+    margin-bottom:18px;font-size:12px;color:var(--text-dim);
+  }
+  .opts .chip{
+    background:var(--ink-2);border:1px solid var(--ink-3);border-radius:8px;
+    padding:6px 10px;display:flex;align-items:center;gap:6px;cursor:pointer;
+  }
+  .opts .chip.on{border-color:var(--brass);color:var(--text)}
+  .opts select{
+    background:var(--ink-2);color:var(--text);border:1px solid var(--ink-3);
+    border-radius:8px;padding:6px 8px;font:inherit;font-size:12px;
+  }
+
+  /* ---------- The stage ---------- */
+  .stage{
+    background:
+      repeating-linear-gradient(45deg,var(--felt) 0 14px,#0f312a 14px 28px);
+    border:1px solid var(--felt-line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow),inset 0 0 60px rgba(0,0,0,.4);
+    padding:26px 20px;margin-bottom:16px;
+    text-align:center;position:relative;overflow:hidden;
+  }
+  .stage::after{
+    content:"";position:absolute;inset:6px;border:1px solid rgba(200,164,92,.18);
+    border-radius:10px;pointer-events:none;
+  }
+  .prompt-label{
+    font-family:ui-monospace,monospace;font-size:11px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--brass);margin-bottom:14px;
+  }
+
+  /* Playing card face */
+  .card{
+    width:138px;height:194px;margin:0 auto 6px;
+    background:linear-gradient(160deg,var(--paper),#ded5c0);
+    border-radius:12px;
+    box-shadow:0 12px 24px rgba(0,0,0,.5),inset 0 0 0 1px rgba(0,0,0,.08);
+    position:relative;color:var(--black);
+    display:flex;align-items:center;justify-content:center;
+    animation:deal .35s ease both;
+  }
+  @keyframes deal{from{opacity:0;transform:translateY(10px) rotate(-2deg) scale(.96)}to{opacity:1;transform:none}}
+  .card.red{color:var(--red)}
+  .card .corner{
+    position:absolute;font-size:18px;font-weight:700;line-height:1;
+    display:flex;flex-direction:column;align-items:center;
+    font-family:Georgia,serif;
+  }
+  .card .corner svg{width:14px;height:14px;margin-top:1px}
+  .card .corner.tl{top:9px;left:10px}
+  .card .corner.br{bottom:9px;right:10px;transform:rotate(180deg)}
+  .card .center-pip{width:62px;height:62px}
+
+  /* Big number prompt (position -> card mode) */
+  .bignum{
+    font-size:84px;font-weight:700;color:var(--paper);line-height:1;
+    text-shadow:0 4px 0 rgba(0,0,0,.3);
+    animation:deal .3s ease both;
+  }
+  .bignum .of{display:block;font-size:13px;letter-spacing:3px;
+    color:var(--brass);text-transform:uppercase;margin-top:8px;
+    font-family:ui-monospace,monospace;font-weight:400}
+
+  /* ---------- Answer area ---------- */
+  .answer{margin-top:4px}
+  /* numeric input mode */
+  .numbox{
+    display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;
+  }
+  .numbox input{
+    width:120px;font-size:30px;text-align:center;font-family:ui-monospace,monospace;
+    background:var(--ink);color:var(--paper);border:2px solid var(--ink-3);
+    border-radius:10px;padding:8px;
+  }
+  .numbox input:focus{outline:none;border-color:var(--brass)}
+
+  /* button-pick mode */
+  .picker{margin-top:4px}
+  .picker .row-label{
+    font-family:ui-monospace,monospace;font-size:10px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--text-dim);margin:10px 0 6px;
+  }
+  .ranks{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;max-width:430px;margin:0 auto}
+  .ranks button{
+    background:var(--ink-2);border:1px solid var(--ink-3);color:var(--text);
+    border-radius:8px;padding:10px 0;font-size:15px;font-weight:700;cursor:pointer;
+    font-family:Georgia,serif;transition:.12s;
+  }
+  .ranks button:hover{border-color:var(--brass-dim)}
+  .ranks button.sel{background:var(--brass);color:var(--ink);border-color:var(--brass)}
+  .suits{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:300px;margin:0 auto}
+  .suits button{
+    background:var(--ink-2);border:1px solid var(--ink-3);
+    border-radius:10px;padding:10px;cursor:pointer;transition:.12s;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .suits button svg{width:26px;height:26px}
+  .suits button .pip:not(.red){stroke:rgba(232,230,223,.35);stroke-width:.6}
+  .suits button:hover{border-color:var(--brass-dim)}
+  .suits button.sel{background:var(--brass);border-color:var(--brass)}
+  .suits button.sel svg .pip{fill:var(--ink)}
+
+  /* ---------- Action buttons ---------- */
+  .actions{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+  .btn{
+    border:0;border-radius:10px;padding:12px 22px;font-size:15px;font-weight:700;
+    cursor:pointer;font-family:inherit;letter-spacing:.3px;transition:.12s;
+  }
+  .btn-primary{background:var(--brass);color:var(--ink)}
+  .btn-primary:hover{background:#d8b56e}
+  .btn-ghost{background:transparent;color:var(--text-dim);border:1px solid var(--ink-3)}
+  .btn-ghost:hover{color:var(--text);border-color:var(--brass-dim)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+
+  /* ---------- Feedback ---------- */
+  .feedback{min-height:30px;margin-top:14px;font-size:16px;font-weight:600}
+  .feedback.ok{color:var(--ok)}
+  .feedback.bad{color:var(--bad)}
+  .feedback .ans{color:var(--paper)}
+
+  /* ---------- Stats ---------- */
+  .scorebar{
+    display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+    margin-bottom:18px;font-family:ui-monospace,monospace;font-size:12px;
+  }
+  .stat{background:var(--ink-2);border:1px solid var(--ink-3);border-radius:8px;
+    padding:8px 14px;text-align:center;min-width:78px}
+  .stat b{display:block;font-size:20px;color:var(--paper);font-family:Georgia,serif}
+  .stat span{color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;font-size:9px}
+  .stat.pct b{color:var(--brass)}
+
+  /* ---------- Heatmap / detail ---------- */
+  details{margin-top:8px;background:var(--ink-2);border:1px solid var(--ink-3);
+    border-radius:10px;padding:0 14px}
+  summary{cursor:pointer;padding:13px 0;font-size:13px;font-weight:600;
+    letter-spacing:.5px;color:var(--text-dim);list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸ ";color:var(--brass)}
+  details[open] summary::before{content:"▾ "}
+  .heat{display:grid;grid-template-columns:repeat(13,1fr);gap:3px;padding:4px 0 16px}
+  .heat .cell{
+    aspect-ratio:1;border-radius:3px;background:var(--ink-3);
+    font-size:8px;display:flex;align-items:center;justify-content:center;
+    color:var(--text-dim);font-family:ui-monospace,monospace;position:relative;
+  }
+  .legend{display:flex;gap:10px;font-size:10px;color:var(--text-dim);
+    padding-bottom:14px;align-items:center;font-family:ui-monospace,monospace}
+  .legend i{width:12px;height:12px;border-radius:3px;display:inline-block;margin-right:3px;vertical-align:-2px}
+  .reset{padding-bottom:16px}
+  .reset button{background:transparent;border:1px solid var(--bad);color:var(--bad);
+    border-radius:8px;padding:7px 14px;font:inherit;font-size:12px;cursor:pointer}
+
+  .hint{text-align:center;font-size:11px;color:var(--text-dim);margin-top:10px;
+    font-family:ui-monospace,monospace;letter-spacing:.5px}
+  footer{text-align:center;margin-top:26px;font-size:11px;color:var(--brass-dim);
+    font-family:ui-monospace,monospace;letter-spacing:1px}
+
+  /* SVG pip defaults */
+  .pip{fill:var(--black)}
+  .pip.red{fill:var(--red)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- suit shapes are drawn inline from the PATHS map in JS -->
+
+  <header>
+    <div class="brand">
+      <div>
+        <h1>Mnemo<span class="acc">nica</span></h1>
+        <div class="sub" data-i18n="tagline">Stack memory trainer</div>
+      </div>
+    </div>
+    <div class="lang">
+      <button id="lang-fr" class="on" onclick="setLang('fr')">FR</button>
+      <button id="lang-en" onclick="setLang('en')">EN</button>
+    </div>
+  </header>
+
+  <div class="scorebar">
+    <div class="stat"><b id="st-streak">0</b><span data-i18n="streak">série</span></div>
+    <div class="stat"><b id="st-correct">0</b><span data-i18n="hits">réussites</span></div>
+    <div class="stat"><b id="st-tries">0</b><span data-i18n="tries">essais</span></div>
+    <div class="stat pct"><b id="st-pct">—</b><span data-i18n="pct">précision</span></div>
+  </div>
+
+  <div class="modes" id="modes"></div>
+
+  <div class="opts">
+    <label class="chip" id="chip-range">
+      <span data-i18n="range">Plage</span>
+      <select id="rangeSel" onchange="applyOpts()"></select>
+    </label>
+    <label class="chip" id="chip-mistakes" onclick="toggleMistakes()">
+      <span data-i18n="mistakesOnly">Réviser mes erreurs</span>
+      <b id="mistCount">(0)</b>
+    </label>
+  </div>
+
+  <div class="stage" id="stage"></div>
+
+  <div class="feedback" id="feedback"></div>
+
+  <div class="hint" id="hint"></div>
+
+  <details>
+    <summary data-i18n="statsTitle">Statistiques par carte</summary>
+    <div class="legend">
+      <span><i style="background:var(--ink-3)"></i><span data-i18n="legNone">jamais vue</span></span>
+      <span><i style="background:var(--ok)"></i><span data-i18n="legOk">solide</span></span>
+      <span><i style="background:var(--bad)"></i><span data-i18n="legBad">à revoir</span></span>
+    </div>
+    <div class="heat" id="heat"></div>
+    <div class="reset"><button onclick="resetAll()" data-i18n="resetBtn">Réinitialiser toutes les stats</button></div>
+  </details>
+
+  <footer>MNEMONICA · TAMARIZ STACK · 52</footer>
+</div>
+
+<script>
+/* ============================================================
+   1. THE STACK DATA  (position 1..52 -> rank,suit)
+   suits: H hearts, S spades, D diamonds, C clubs
+   ============================================================ */
+const STACK = [
+  ["4","C"],["2","H"],["7","D"],["3","C"],["4","H"],["6","D"],["A","S"],["5","H"],
+  ["9","S"],["2","S"],["Q","H"],["3","D"],["Q","C"],["8","H"],["6","S"],["5","S"],
+  ["9","H"],["K","C"],["2","D"],["J","H"],["3","S"],["8","S"],["6","H"],["10","C"],
+  ["5","D"],["K","D"],["2","C"],["3","H"],["8","D"],["5","C"],["K","S"],["J","D"],
+  ["8","C"],["10","S"],["K","H"],["J","C"],["7","S"],["10","H"],["A","D"],["4","S"],
+  ["7","H"],["4","D"],["A","C"],["9","C"],["J","S"],["Q","D"],["7","C"],["Q","S"],
+  ["10","D"],["6","C"],["A","H"],["9","D"]
+];
+const SUIT_RED={H:true,D:true,S:false,C:false};
+const RANKS=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+const SUITS=["H","S","D","C"];
+
+/* ============================================================
+   2. I18N
+   ============================================================ */
+const I18N={
+  fr:{
+    tagline:"Entraîneur de pile",
+    streak:"série",hits:"réussites",tries:"essais",pct:"précision",
+    range:"Plage",mistakesOnly:"Réviser mes erreurs",
+    statsTitle:"Statistiques par carte",
+    legNone:"jamais vue",legOk:"solide",legBad:"à revoir",
+    resetBtn:"Réinitialiser toutes les stats",
+    m_n2p:"Nom → N°",m_n2p_s:"tape le numéro",
+    m_p2n:"N° → Nom",m_p2n_s:"choisis la carte",
+    m_next:"Suivante",m_next_s:"carte d'après",
+    m_prev:"Précédente",m_prev_s:"carte d'avant",
+    promptName:"Quelle est sa position ?",
+    promptPos:"Quelle carte est à cette position ?",
+    promptNext:"Quelle carte suit celle-ci ?",
+    promptPrev:"Quelle carte précède celle-ci ?",
+    ofStack:"sur 52",
+    check:"Vérifier",skip:"Passer",next:"Suivante",
+    correct:"Exact.",wrong:"Non —",theAnswer:"c'était",
+    placeholder:"n°",
+    rangeAll:"Toutes (1–52)",
+    pickRank:"Valeur",pickSuit:"Couleur",
+    hintEnter:"Entrée pour valider · Échap pour passer",
+    hintPick:"Clique une valeur puis une couleur",
+    allRange:"Toutes",
+    confirmReset:"Effacer toutes les statistiques ?"
+  },
+  en:{
+    tagline:"Stack memory trainer",
+    streak:"streak",hits:"hits",tries:"tries",pct:"accuracy",
+    range:"Range",mistakesOnly:"Drill my misses",
+    statsTitle:"Per-card statistics",
+    legNone:"unseen",legOk:"solid",legBad:"shaky",
+    resetBtn:"Reset all statistics",
+    m_n2p:"Name → No.",m_n2p_s:"type the number",
+    m_p2n:"No. → Name",m_p2n_s:"pick the card",
+    m_next:"Next",m_next_s:"the card after",
+    m_prev:"Previous",m_prev_s:"the card before",
+    promptName:"What is its position?",
+    promptPos:"Which card sits at this position?",
+    promptNext:"Which card comes after this one?",
+    promptPrev:"Which card comes before this one?",
+    ofStack:"of 52",
+    check:"Check",skip:"Skip",next:"Next",
+    correct:"Correct.",wrong:"No —",theAnswer:"it was",
+    placeholder:"no.",
+    rangeAll:"All (1–52)",
+    pickRank:"Rank",pickSuit:"Suit",
+    hintEnter:"Enter to check · Esc to skip",
+    hintPick:"Tap a rank then a suit",
+    allRange:"All",
+    confirmReset:"Erase all statistics?"
+  }
+};
+let lang="fr";
+function t(k){return I18N[lang][k]||k;}
+
+/* ============================================================
+   3. STATE + PERSISTENCE
+   ============================================================ */
+const LS_KEY="mnemonica_trainer_v1";
+let stats=load();
+function load(){
+  try{const d=JSON.parse(localStorage.getItem(LS_KEY));if(d&&d.cards)return d;}catch(e){}
+  return {cards:Array.from({length:52},()=>({seen:0,ok:0})),
+          totalTries:0,totalOk:0};
+}
+function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(stats));}catch(e){}}
+
+let mode="n2p";          // n2p | p2n | next | prev
+let rangeStart=0,rangeEnd=51;
+let mistakesOnly=false;
+let streak=0;
+let current=null;        // current position index (0-based)
+let pendingRank=null,pendingSuit=null;
+let answered=false;
+
+const MODES=[
+  {id:"n2p",icon:"m_n2p",sub:"m_n2p_s"},
+  {id:"p2n",icon:"m_p2n",sub:"m_p2n_s"},
+  {id:"next",icon:"m_next",sub:"m_next_s"},
+  {id:"prev",icon:"m_prev",sub:"m_prev_s"}
+];
+
+/* ============================================================
+   4. RENDER HELPERS
+   ============================================================ */
+function cardFace(pos){
+  const [r,s]=STACK[pos];
+  const red=SUIT_RED[s];
+  const small=`<svg viewBox="0 0 32 32" width="13" height="13" style="display:block;margin-top:1px"><path class="pip ${red?'red':''}" d="${PATHS[s]}"/></svg>`;
+  const big=`<svg viewBox="0 0 32 32" width="58" height="58"><path class="pip ${red?'red':''}" d="${PATHS[s]}"/></svg>`;
+  return `<div class="card ${red?'red':''}">
+      <div class="corner tl">${r}${small}</div>
+      <div class="center-pip">${big}</div>
+      <div class="corner br">${r}${small}</div>
+    </div>`;
+}
+// raw path strings so we can color per-instance reliably
+const PATHS={
+  H:"M16 28C6 21 2 15 2 10.5 2 6.4 5.4 3 9.5 3c2.7 0 5 1.5 6.5 3.8C17.5 4.5 19.8 3 22.5 3 26.6 3 30 6.4 30 10.5 30 15 26 21 16 28z",
+  D:"M16 1 29 16 16 31 3 16z",
+  S:"M16 2C10 8 3 12 3 18.5 3 22.6 6.1 26 10 26c1.9 0 3.5-.8 4.6-2-.3 2.2-1.3 4-3.1 5.5h9c-1.8-1.5-2.8-3.3-3.1-5.5 1.1 1.2 2.7 2 4.6 2 3.9 0 7-3.4 7-7.5C29 12 22 8 16 2z",
+  C:"M16 2c-3.3 0-6 2.7-6 6 0 1.2.4 2.4 1 3.3-1-.8-2.3-1.3-3.7-1.3-3.3 0-6 2.7-6 6s2.7 6 6 6c1.9 0 3.6-.9 4.7-2.3-.2 2.4-1.3 4.4-3.2 5.8h10.4c-1.9-1.4-3-3.4-3.2-5.8C17.1 25.1 18.8 26 20.7 26c3.3 0 6-2.7 6-6s-2.7-6-6-6c-1.4 0-2.7.5-3.7 1.3.6-.9 1-2.1 1-3.3 0-3.3-2.7-6-6-6z"
+};
+
+/* ============================================================
+   5. CORE: pick a card, render prompt + answer UI
+   ============================================================ */
+function pool(){
+  let idx=[];
+  for(let i=rangeStart;i<=rangeEnd;i++)idx.push(i);
+  if(mistakesOnly){
+    const bad=idx.filter(i=>stats.cards[i].seen>0 && stats.cards[i].ok/stats.cards[i].seen<0.8);
+    if(bad.length)return bad;
+  }
+  return idx;
+}
+function nextCard(){
+  answered=false;pendingRank=null;pendingSuit=null;
+  const p=pool();
+  // weight toward less-solid cards a bit
+  let pick;
+  if(Math.random()<0.5){
+    const weighted=p.map(i=>{
+      const c=stats.cards[i];const acc=c.seen?c.ok/c.seen:0;
+      return {i,w:1+(1-acc)*2+(c.seen===0?1:0)};
+    });
+    const tot=weighted.reduce((a,b)=>a+b.w,0);let r=Math.random()*tot;
+    for(const w of weighted){r-=w.w;if(r<=0){pick=w.i;break;}}
+    if(pick===undefined)pick=p[0];
+  }else{
+    pick=p[Math.floor(Math.random()*p.length)];
+  }
+  // for next/prev avoid the wrap edge being unfair? keep all, wrap around stack
+  current=pick;
+  renderStage();
+  document.getElementById("feedback").textContent="";
+  document.getElementById("feedback").className="feedback";
+}
+
+function renderStage(){
+  const stage=document.getElementById("stage");
+  const hint=document.getElementById("hint");
+  let promptLabel,body;
+  if(mode==="n2p"){
+    promptLabel=t("promptName");
+    body=cardFace(current)+answerNumeric();
+    hint.textContent=t("hintEnter");
+  }else if(mode==="p2n"){
+    promptLabel=t("promptPos");
+    body=`<div class="bignum">${current+1}<span class="of">${t("ofStack")}</span></div>`+answerPicker();
+    hint.textContent=t("hintPick");
+  }else if(mode==="next"){
+    promptLabel=t("promptNext");
+    body=cardFace(current)+answerPicker();
+    hint.textContent=t("hintPick");
+  }else{ // prev
+    promptLabel=t("promptPrev");
+    body=cardFace(current)+answerPicker();
+    hint.textContent=t("hintPick");
+  }
+  stage.innerHTML=`<div class="prompt-label">${promptLabel}</div>${body}`;
+  if(mode==="n2p"){
+    const inp=document.getElementById("numInput");
+    inp.focus();
+    inp.addEventListener("keydown",e=>{
+      if(e.key==="Enter")checkAnswer();
+      if(e.key==="Escape")skip();
+    });
+  }
+}
+
+function answerNumeric(){
+  return `<div class="answer numbox">
+      <input id="numInput" type="number" inputmode="numeric" min="1" max="52"
+             placeholder="${t('placeholder')}" autocomplete="off">
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="checkAnswer()">${t('check')}</button>
+      <button class="btn btn-ghost" onclick="skip()">${t('skip')}</button>
+    </div>`;
+}
+
+function answerPicker(){
+  const ranks=RANKS.map(r=>`<button onclick="pickRank('${r}',this)">${r}</button>`).join("");
+  const suits=SUITS.map(s=>`<button onclick="pickSuit('${s}',this)" aria-label="${s}">
+      <svg viewBox="0 0 32 32" width="26" height="26"><path class="pip ${SUIT_RED[s]?'red':''}" d="${PATHS[s]}"/></svg>
+    </button>`).join("");
+  return `<div class="answer picker">
+      <div class="row-label">${t('pickRank')}</div>
+      <div class="ranks">${ranks}</div>
+      <div class="row-label">${t('pickSuit')}</div>
+      <div class="suits">${suits}</div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="checkBtn" onclick="checkAnswer()" disabled>${t('check')}</button>
+      <button class="btn btn-ghost" onclick="skip()">${t('skip')}</button>
+    </div>`;
+}
+
+function pickRank(r,el){
+  pendingRank=r;
+  document.querySelectorAll(".ranks button").forEach(b=>b.classList.remove("sel"));
+  el.classList.add("sel");maybeEnable();
+}
+function pickSuit(s,el){
+  pendingSuit=s;
+  document.querySelectorAll(".suits button").forEach(b=>b.classList.remove("sel"));
+  el.classList.add("sel");maybeEnable();
+}
+function maybeEnable(){
+  const b=document.getElementById("checkBtn");
+  if(b)b.disabled=!(pendingRank&&pendingSuit);
+}
+
+/* which position are we actually being graded on? */
+function targetPos(){
+  if(mode==="next")return (current+1)%52;
+  if(mode==="prev")return (current+51)%52;
+  return current;
+}
+
+function checkAnswer(){
+  if(answered)return;
+  let correct=false,correctLabel="";
+  const tp=targetPos();
+  if(mode==="n2p"){
+    const val=parseInt(document.getElementById("numInput").value,10);
+    correct=(val===current+1);
+    correctLabel=(current+1)+"";
+    record(current,correct);
+  }else{
+    if(!pendingRank||!pendingSuit)return;
+    const [r,s]=STACK[tp];
+    correct=(pendingRank===r&&pendingSuit===s);
+    correctLabel=cardLabel(tp);
+    // record against the *prompt* card for next/prev, target for p2n
+    const recIdx=(mode==="p2n")?tp:current;
+    record(recIdx,correct);
+  }
+  answered=true;
+  showFeedback(correct,correctLabel);
+}
+
+function cardLabel(pos){
+  const [r,s]=STACK[pos];
+  return `${r} ${pip(s,16)}`;
+}
+function pip(s,size){
+  return `<svg viewBox="0 0 32 32" width="${size}" height="${size}" style="vertical-align:-2px">
+    <path class="pip ${SUIT_RED[s]?'red':''}" d="${PATHS[s]}"/></svg>`;
+}
+
+function record(idx,ok){
+  stats.cards[idx].seen++;
+  stats.totalTries++;
+  if(ok){stats.cards[idx].ok++;stats.totalOk++;streak++;}
+  else{streak=0;}
+  save();updateScore();renderHeat();
+}
+
+function showFeedback(ok,label){
+  const f=document.getElementById("feedback");
+  if(ok){
+    f.className="feedback ok";
+    f.textContent=t("correct");
+  }else{
+    f.className="feedback bad";
+    f.innerHTML=`${t("wrong")} ${t("theAnswer")} <span class="ans">${label}</span>`;
+  }
+  // swap action button to "next"
+  const acts=document.querySelector(".actions");
+  if(acts)acts.innerHTML=`<button class="btn btn-primary" onclick="nextCard()" autofocus>${t('next')}</button>`;
+  // allow Enter to advance
+  document.onkeydown=e=>{if(e.key==="Enter"){document.onkeydown=null;nextCard();}};
+}
+
+function skip(){
+  if(!answered){record(targetPos()===current?current:(mode==="p2n"?targetPos():current),false);}
+  nextCard();
+}
+
+/* ============================================================
+   6. SCORE + HEATMAP UI
+   ============================================================ */
+function updateScore(){
+  document.getElementById("st-streak").textContent=streak;
+  document.getElementById("st-correct").textContent=stats.totalOk;
+  document.getElementById("st-tries").textContent=stats.totalTries;
+  const pct=stats.totalTries?Math.round(stats.totalOk/stats.totalTries*100):null;
+  document.getElementById("st-pct").textContent=pct===null?"—":pct+"%";
+  const mc=stats.cards.filter((c,i)=>i>=rangeStart&&i<=rangeEnd&&c.seen>0&&c.ok/c.seen<0.8).length;
+  document.getElementById("mistCount").textContent="("+mc+")";
+}
+function renderHeat(){
+  const heat=document.getElementById("heat");
+  heat.innerHTML=stats.cards.map((c,i)=>{
+    let bg="var(--ink-3)";
+    if(c.seen>0){
+      const acc=c.ok/c.seen;
+      // interpolate bad->ok
+      bg = acc>=0.8 ? "var(--ok)" : acc>=0.5 ? "#b5923f" : "var(--bad)";
+    }
+    const [r,s]=STACK[i];
+    return `<div class="cell" style="background:${bg}" title="${i+1}: ${r}${s}">${i+1}</div>`;
+  }).join("");
+}
+
+/* ============================================================
+   7. MODES + OPTIONS UI
+   ============================================================ */
+function renderModes(){
+  document.getElementById("modes").innerHTML=MODES.map(m=>
+    `<button class="mode ${m.id===mode?'on':''}" onclick="setMode('${m.id}')">
+       ${t(m.icon)}<small>${t(m.sub)}</small>
+     </button>`).join("");
+}
+function setMode(m){mode=m;renderModes();nextCard();}
+
+function renderRangeOptions(){
+  const sel=document.getElementById("rangeSel");
+  const blocks=[[0,51,t("rangeAll")]];
+  for(let s=0;s<52;s+=13){
+    blocks.push([s,Math.min(s+12,51),`${s+1}–${Math.min(s+13,52)}`]);
+  }
+  sel.innerHTML=blocks.map((b,i)=>`<option value="${b[0]},${b[1]}">${b[2]}</option>`).join("");
+}
+function applyOpts(){
+  const [a,b]=document.getElementById("rangeSel").value.split(",").map(Number);
+  rangeStart=a;rangeEnd=b;updateScore();nextCard();
+}
+function toggleMistakes(){
+  mistakesOnly=!mistakesOnly;
+  document.getElementById("chip-mistakes").classList.toggle("on",mistakesOnly);
+  nextCard();
+}
+
+/* ============================================================
+   8. LANG + RESET
+   ============================================================ */
+function setLang(l){
+  lang=l;
+  document.getElementById("lang-fr").classList.toggle("on",l==="fr");
+  document.getElementById("lang-en").classList.toggle("on",l==="en");
+  document.documentElement.lang=l;
+  applyStaticI18n();
+  renderModes();renderRangeOptions();updateScore();renderStage();
+}
+function applyStaticI18n(){
+  document.querySelectorAll("[data-i18n]").forEach(el=>{
+    el.textContent=t(el.getAttribute("data-i18n"));
+  });
+}
+function resetAll(){
+  if(confirm(t("confirmReset"))){
+    stats={cards:Array.from({length:52},()=>({seen:0,ok:0})),totalTries:0,totalOk:0};
+    streak=0;save();updateScore();renderHeat();nextCard();
+  }
+}
+
+/* ============================================================
+   9. INIT
+   ============================================================ */
+function init(){
+  applyStaticI18n();
+  renderModes();
+  renderRangeOptions();
+  renderHeat();
+  updateScore();
+  nextCard();
+}
+init();
+</script>
+</body>
+</html>
